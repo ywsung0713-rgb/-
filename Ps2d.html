@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>끝말잇기 도우미</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d14;
+    --surface: #13131e;
+    --card: #1c1c2e;
+    --border: #2e2e50;
+    --accent: #6c63ff;
+    --accent2: #ff6b9d;
+    --accent3: #43e8d8;
+    --text: #eeeef8;
+    --muted: #6060a0;
+    --success: #43e88a;
+    --warn: #f7c948;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 36px 16px 80px;
+    overflow-x: hidden;
+  }
+  .glow-orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(80px); opacity: 0.18; }
+  .glow-orb.a { width: 500px; height: 500px; background: var(--accent); top: -150px; left: -150px; }
+  .glow-orb.b { width: 400px; height: 400px; background: var(--accent2); bottom: -100px; right: -100px; }
+  .header { text-align: center; margin-bottom: 36px; animation: fadeDown 0.6s cubic-bezier(.22,1,.36,1); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(108,99,255,0.15); border: 1px solid rgba(108,99,255,0.35); color: #a89fff; font-size: 11px; font-weight: 700; letter-spacing: 2px; padding: 5px 14px; border-radius: 20px; margin-bottom: 18px; text-transform: uppercase; }
+  .header h1 { font-family: 'Black Han Sans', sans-serif; font-size: clamp(36px, 7vw, 60px); background: linear-gradient(135deg, #fff 20%, var(--accent) 55%, var(--accent2) 90%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.1; margin-bottom: 10px; }
+  .header p { color: var(--muted); font-size: 13px; }
+  .card { width: 100%; max-width: 700px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 28px 32px; margin-bottom: 20px; animation: fadeUp 0.7s cubic-bezier(.22,1,.36,1); }
+  .label { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; display: block; }
+  .input-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .word-input { flex: 1; background: var(--card); border: 2px solid var(--border); border-radius: 14px; padding: 14px 20px; font-size: 22px; font-family: 'Black Han Sans', sans-serif; color: var(--text); outline: none; transition: border-color 0.2s, box-shadow 0.2s; letter-spacing: 3px; }
+  .word-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(108,99,255,0.15); }
+  .word-input::placeholder { color: var(--muted); font-size: 15px; letter-spacing: 1px; font-family: 'Noto Sans KR'; }
+  .search-btn { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 14px; padding: 0 26px; font-size: 22px; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; flex-shrink: 0; }
+  .search-btn:hover { transform: scale(1.06); box-shadow: 0 6px 24px rgba(108,99,255,0.45); }
+  .search-btn:active { transform: scale(0.96); }
+  .target-bar { display: none; align-items: center; gap: 14px; padding: 12px 18px; background: var(--card); border-radius: 12px; border-left: 4px solid var(--accent); }
+  .target-bar.on { display: flex; animation: fadeUp 0.3s ease; }
+  .char-pill { width: 50px; height: 50px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-family: 'Black Han Sans', sans-serif; font-size: 26px; flex-shrink: 0; box-shadow: 0 4px 16px rgba(108,99,255,0.4); }
+  .target-info .main { font-size: 15px; font-weight: 700; color: var(--text); }
+  .target-info .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .results-section { display: none; }
+  .results-section.on { display: block; animation: fadeUp 0.35s ease; }
+  .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .result-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+  .result-count { font-size: 12px; color: var(--success); font-weight: 700; }
+  .words-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .word-chip { background: var(--card); border: 1.5px solid var(--border); border-radius: 14px; padding: 13px 14px; cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden; user-select: none; }
+  .word-chip:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 6px 20px rgba(108,99,255,0.2); }
+  .word-chip:active { transform: translateY(0); }
+  .word-chip.selected { border-color: var(--accent3); background: rgba(67,232,216,0.07); }
+  .chip-word { font-family: 'Black Han Sans', sans-serif; font-size: 19px; display: block; margin-bottom: 5px; letter-spacing: 1px; }
+  .chip-word .fc { color: var(--accent); }
+  .chip-word .lc { color: var(--accent2); }
+  .chip-next { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+  .chip-next .arrow-tag { background: rgba(255,107,157,0.18); color: var(--accent2); border-radius: 5px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
+  .empty-box { display: none; text-align: center; padding: 36px 20px; color: var(--muted); }
+  .empty-box.on { display: block; animation: fadeUp 0.3s ease; }
+  .empty-box .emoji { font-size: 36px; margin-bottom: 10px; }
+  .empty-box .msg { font-size: 14px; }
+  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .history-chain { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 36px; }
+  .h-word { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font-family: 'Black Han Sans', sans-serif; font-size: 15px; color: var(--text); animation: pop 0.25s cubic-bezier(.22,1,.36,1); }
+  .h-word:last-child { border-color: var(--accent3); color: var(--accent3); }
+  .h-arrow { color: var(--muted); font-size: 14px; }
+  .h-empty { color: var(--muted); font-size: 13px; }
+  .clear-btn { font-size: 11px; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans KR'; }
+  .clear-btn:hover { color: var(--accent2); border-color: var(--accent2); }
+  .stat-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .stat-item { font-size: 12px; color: var(--muted); }
+  .stat-item span { color: var(--warn); font-weight: 700; }
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+</style>
+</head>
+<body>
+<div class="glow-orb a"></div>
+<div class="glow-orb b"></div>
+<div class="header">
+  <div class="badge">✦ 오프라인 도우미</div>
+  <h1>끝말잇기<br>단어 찾기</h1>
+  <p>단어 또는 글자를 입력하면 이어갈 수 있는 단어를 추천해드립니다</p>
+</div>
+<div class="card">
+  <label class="label">단어 또는 글자 입력</label>
+  <div class="input-row">
+    <input class="word-input" id="wordInput" type="text" placeholder="예) 가속도 또는 도" autocomplete="off" spellcheck="false">
+    <button class="search-btn" id="searchBtn">🔍</button>
+  </div>
+  <div class="target-bar" id="targetBar">
+    <div class="char-pill" id="charPill">?</div>
+    <div class="target-info">
+      <div class="main" id="targetMain">검색 결과</div>
+      <div class="sub" id="targetSub">끝 글자 기준으로 추천</div>
+    </div>
+  </div>
+  <div style="margin-top:18px">
+    <div class="results-section" id="resultsSection">
+      <div class="result-header">
+        <span class="result-title">추천 단어</span>
+        <span class="result-count" id="resultCount"></span>
+      </div>
+      <div class="words-grid" id="wordsGrid"></div>
+    </div>
+    <div class="empty-box" id="emptyBox">
+      <div class="emoji">🤔</div>
+      <div class="msg" id="emptyMsg">해당 글자로 시작하는 단어가 없습니다</div>
+    </div>
+  </div>
+</div>
+<div class="card">
+  <div class="history-header">
+    <span class="label" style="margin:0">🔗 이어진 단어 기록</span>
+    <button class="clear-btn" id="clearBtn">초기화</button>
+  </div>
+  <div class="history-chain" id="historyChain">
+    <span class="h-empty">단어를 클릭하면 여기에 체인이 기록됩니다</span>
+  </div>
+  <div class="stat-bar" id="statBar" style="display:none">
+    <div class="stat-item">총 단어 <span id="statCount">0</span>개</div>
+    <div class="stat-item">마지막 글자 <span id="statLast">-</span></div>
+  </div>
+</div>
+<script>
+const DICT = {
+  "가":["가속도","가구","가치","가방","가을","가수","가족","가능","가상","가장","가슴","가격","가이드","가로등","가난","가뭄","가사","가담","가오리","가마솥","가발","가보","가시","가지","각도","각목","각색","각오","갈등","갈매기","감각","감동","감사","감자","강물","강아지","강철","개구리","개념","개미","거리","거북이","건강","건물","결과","결정","겨울","경기","경험"],
+  "나":["나라","나무","나비","나침반","나락","나눔","나이","나팔","나선","나열","나약","낙타","낙원","낚시","낙엽","낭만","낭비","낭독","남극","남자","남편","낮잠","내일","냉면","냉장고","너구리","노력","노래","노을","노란색","논리","뇌파","누룽지","눈물","눈사람","능력"],
+  "다":["다람쥐","다이아몬드","다수","다짐","다양","다리","다음","다채","다독","단어","단결","단계","단풍","단호","달빛","달팽이","담요","답변","대가","대화","대학","대립","대담","대나무","대리석","덕목","덕분","도전","도서관","도형","도마","도시","도약","도움","독서","동기","동화","돌파","드라마","드래곤","디자인","디지털"],
+  "라":["라면","라디오","라켓","라이벌","락교","랍스터","레몬","레시피","로봇","로켓","로마","로망"],
+  "마":["마찰","마법","마을","마감","마라톤","마루","마음","마당","마스크","막걸리","막대","만족","만화","망원경","매력","매화","먹구름","명상","명예","모험","모래","모자","목각","목표","목적","몰입","무지개","무기","문화","문명","물결","미래","미소","미스터리","미학","밀도"],
+  "바":["바나나","바위","바탕","바다","바람","박물관","박멸","박수","반도체","반지","반응","발전","발명","발걸음","밤하늘","방향","방법","방랑","배려","배움","버섯","벌꿀","변화","보석","보물","본질","본능","복잡","봄날","부족","불꽃","비밀","비전","빛"],
+  "사":["사막","사진","사자","사탕","사랑","사과","사고","사회","사전","사업","산호","산책","삶","상상","상처","새벽","생각","생명","서광","서울","서약","선택","설렘","성실","성찰","성격","성공","성장","세계","세월","소나기","소설","소원","소통","속도","솔직","수련","순수","시작","시간","신비","신뢰","심층","심리"],
+  "아":["아름다움","아이스크림","아파트","악어","아늑","아침","아이디어","악기","악몽","안전","안녕","암호","압력","야망","야경","약속","약국","양심","어둠","여름","역사","연구","열정","예술","오리","오케스트라","오해","온기","완벽","외로움","용기","우주","우정","운명","원칙","위험","유연","유머","의지","이상","이해","인내"],
+  "자":["자본","자유","자전거","자석","자연","자동차","자랑","자세","자아","자원","작품","잠수함","잠재력","장미","재능","재미","저녁","저항","전략","전기","전설","전통","전환","절제","절박","정신","정의","정직","제한","조절","존재","좌절","주관","지식","지혜","지평선","진실","진심","집중"],
+  "차":["착각","차이","차별","창문","창조","창의","찰나","채소","책임","척도","천재","천둥","철학","청춘","체계","체험","체력","초월","초록","추억","충성"],
+  "카":["카드","카메라","카페","카리스마","칸막이","칼날","코끼리","코알라","코뿔소"],
+  "타":["타조","타협","탐험","태양","태풍","탐구","탐정","태도","토끼","토마토","토론","토대","통찰","통화"],
+  "파":["파도","파인애플","파괴","파란","파장","팔색조","패턴","퍼즐","편견","편안","평화","포기","포도","포함","폭풍","표현","품격","풍경","피아노"],
+  "하":["하늘","하마","학교","한국","한글","한강","해결","해변","해마","행복","향기","현실","혁신","혜택","호기심","호랑이","호수","혼돈","화학","화덕","화합","활력"],
+  "도":["도전","도서관","도형","도마","도시","도약","도움","독서","동기","동화","돌파"],
+  "로":["로봇","로켓","로마","로망","루틴","리더","리듬","리스트"],
+  "고":["고래","고구마","고집","고요","공감","공부","관찰","광합성","교육","구름","극복","근거","글자","기억","기적","기술"],
+  "노":["노력","노래","노을","논리","능력"],
+  "동":["동기","동화","동물","동생","동네"],
+  "물":["물결","물고기","물방울"],
+  "미":["미래","미소","미스터리","미학"],
+  "발":["발전","발명","발걸음","발자국"],
+  "생":["생각","생명","생활","생선"],
+  "새":["새벽","새싹","새우"],
+  "여":["여름","여행","여유","여우"],
+  "역":["역사","역할","역경"],
+  "열":["열정","열매","열쇠"],
+  "예":["예술","예상","예의"],
+  "영":["영웅","영화","영역"],
+  "완":["완벽","완성","완전"],
+  "원":["원칙","원소","원리"],
+  "위":["위험","위기","위로"],
+  "유":["유연","유머","유리","유행"],
+  "의":["의지","의미","의료"],
+  "인":["인내","인간","인류"],
+  "일":["일상","일출","일몰"],
+  "재":["재능","재미","재활"],
+  "저":["저녁","저항","저력"],
+  "정":["정신","정의","정직","정원"],
+  "존":["존재","존중"],
+  "주":["주관","주도","주변"],
+  "중":["중심","중요","중간"],
+  "지":["지식","지혜","지평선","지구"],
+  "진":["진실","진심","진화"],
+  "집":["집중","집합"],
+  "창":["창조","창의","창문"],
+  "청":["청춘","청소"],
+  "초":["초월","초록","초능력"],
+  "추":["추억","추진"],
+  "충":["충성","충돌"],
+  "탐":["탐험","탐구","탐정"],
+  "통":["통찰","통화","통합"],
+  "풍":["풍경","풍요"],
+  "학":["학교","학습","학문"],
+  "행":["행복","행동","행운"],
+  "현":["현실","현상","현명"],
+  "혁":["혁신","혁명"],
+  "호":["호기심","호랑이","호수","호박"],
+  "활":["활력","활동"],
+  "희":["희망","희생"],
+  "한":["한국","한글","한강","한계"],
+  "전":["전략","전기","전설","전통","전환","절제","정신","정의"],
+  "해":["해마","해결","해변","해양","핵심","행동","행복","향기"],
+  "화":["화덕","화면","화학","화합","활력"],
+  "기":["기억","기적","기술","기후","기분"],
+  "경":["경기","경험","경치","경쟁"],
+  "낙":["낙타","낙원","낙엽","낚시"],
+  "봄":["봄날","봄비"],
+  "항":["항상","항해"],
+  "효":["효율","효과"],
+  "흑":["흑백","흑곰"],
+};
+
+const wordInput=document.getElementById('wordInput'),searchBtn=document.getElementById('searchBtn'),targetBar=document.getElementById('targetBar'),charPill=document.getElementById('charPill'),targetMain=document.getElementById('targetMain'),targetSub=document.getElementById('targetSub'),resultsSection=document.getElementById('resultsSection'),wordsGrid=document.getElementById('wordsGrid'),resultCount=document.getElementById('resultCount'),emptyBox=document.getElementById('emptyBox'),emptyMsg=document.getElementById('emptyMsg'),historyChain=document.getElementById('historyChain'),statBar=document.getElementById('statBar'),statCount=document.getElementById('statCount'),statLast=document.getElementById('statLast'),clearBtn=document.getElementById('clearBtn');
+let history=[];
+
+function search(){
+  const raw=wordInput.value.trim();
+  if(!raw)return;
+  const lastChar=raw[raw.length-1];
+  const words=DICT[lastChar]||[];
+  targetBar.classList.add('on');
+  charPill.textContent=lastChar;
+  targetMain.textContent=`'${lastChar}' 로 시작하는 단어 ${words.length}개`;
+  targetSub.textContent=words.length>0?'단어를 클릭하면 체인에 추가됩니다':'단어 사전에 없습니다';
+  if(words.length===0){
+    resultsSection.classList.remove('on');
+    emptyMsg.textContent=`'${lastChar}'(으)로 시작하는 단어가 사전에 없습니다`;
+    emptyBox.classList.add('on');
+    return;
+  }
+  emptyBox.classList.remove('on');
+  renderWords(words);
+}
+
+function renderWords(words){
+  wordsGrid.innerHTML='';
+  words.forEach(word=>{
+    const chip=document.createElement('div');
+    chip.className='word-chip';
+    const fc=word[0],lc=word[word.length-1],mid=word.slice(1,-1),hasNext=!!DICT[lc];
+    chip.innerHTML=`<span class="chip-word"><span class="fc">${fc}</span>${mid}<span class="lc">${lc}</span></span><span class="chip-next"><span class="arrow-tag">→${lc}</span>${hasNext?'<span style="color:#43e88a;font-size:10px">✓이어짐</span>':'<span style="color:#ff6b9d;font-size:10px">막힘</span>'}</span>`;
+    chip.addEventListener('click',()=>{
+      document.querySelectorAll('.word-chip').forEach(c=>c.classList.remove('selected'));
+      chip.classList.add('selected');
+      history.push(word);
+      renderHistory();
+      wordInput.value=word;
+      setTimeout(search,250);
+    });
+    wordsGrid.appendChild(chip);
+  });
+  resultCount.textContent=`${words.length}개`;
+  resultsSection.classList.add('on');
+}
+
+function renderHistory(){
+  if(history.length===0){historyChain.innerHTML='<span class="h-empty">단어를 클릭하면 여기에 체인이 기록됩니다</span>';statBar.style.display='none';return;}
+  historyChain.innerHTML=history.map((w,i)=>`<div style="display:flex;align-items:center;gap:6px"><span class="h-word">${w}</span>${i<history.length-1?'<span class="h-arrow">→</span>':''}</div>`).join('');
+  statBar.style.display='flex';
+  statCount.textContent=history.length;
+  statLast.textContent=history[history.length-1][history[history.length-1].length-1];
+}
+
+searchBtn.addEventListener('click',search);
+wordInput.addEventListener('keydown',e=>{if(e.key==='Enter')search();});
+clearBtn.addEventListener('click',()=>{history=[];renderHistory();wordInput.value='';targetBar.classList.remove('on');resultsSection.classList.remove('on');emptyBox.classList.remove('on');});
+</script>
+</body>
+</html>
